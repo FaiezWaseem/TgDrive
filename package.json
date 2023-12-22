@@ -1,0 +1,31 @@
+{
+  "name": "tg",
+  "version": "1.0.0",
+  "description": "",
+  "main": "backend.js",
+  "scripts": {
+    "start": "electron-forge start",
+    "package": "electron-forge package",
+    "make": "electron-forge make",
+    "publish": "electron-forge publish",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@electron-forge/cli": "^7.2.0",
+    "@electron-forge/maker-deb": "^7.2.0",
+    "@electron-forge/maker-rpm": "^7.2.0",
+    "@electron-forge/maker-squirrel": "^7.2.0",
+    "@electron-forge/maker-zip": "^7.2.0",
+    "buffer": "^6.0.3",
+    "input": "^1.0.1",
+    "registry-js": "^1.15.1",
+    "split-file": "^2.3.0",
+    "telegram": "^2.19.10"
+  },
+  "devDependencies": {
+    "electron": "^28.1.0"
+  }
+}
