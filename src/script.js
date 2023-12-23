@@ -1,54 +1,5 @@
+
 class Util {
-  static getMediaType(message) {
-    // Photo compressed
-    if (message.media?._ === 'messageMediaPhoto') {
-      return '📷 Photo';
-    }
-
-    if (message.media?._ === 'messageMediaDocument') {
-      const attr = message.media?.document.attributes;
-
-      // Sticker
-      if (attr?.[1]?._ === 'documentAttributeSticker') {
-        return attr?.[1]?.alt + ' Sticker';
-      }
-
-      // Photo uncompressed
-      if (attr?.[0]?._ === 'documentAttributeImageSize') {
-        return '📸 Image';
-      }
-
-      // GIF
-      if (attr?.[2]?._ === 'documentAttributeAnimated') {
-        return '📺 GIF';
-      }
-
-      // Audio
-      if (attr?.[0]?._ === 'documentAttributeAudio') {
-        if (attr?.[0].voice) {
-          return '🎤 Voice message';
-        }
-
-        return '🔊 Audio file';
-      }
-
-      // Video
-      if (attr?.[0]?._ === 'documentAttributeVideo') {
-        if (attr?.[0].round_message) {
-          return '🤳 Video message';
-        }
-
-        return '🎥 Video';
-      }
-
-      // File
-      if (attr?.[0]?._ === 'documentAttributeFilename') {
-        return '📁 File';
-      }
-    }
-
-    return null;
-  }
   /**
    *
    * @param {Number} a - Bytes
@@ -66,11 +17,14 @@ class Util {
 
 class Render {
 
+  allfiles = null;
   constructor() {
     this.get('#upload').addEventListener('click', () => {
       this.upload()
     })
-
+    this.get('#refresh').addEventListener('click', () => {
+      window.api.send("toMain", { type: 'latest' });
+    })
   }
   init(receive) {
     console.log(receive)
@@ -85,18 +39,18 @@ class Render {
       this.addUploadProgressBar(receive)
     }
   }
-  addUploadProgressBar(upload){
+  addUploadProgressBar(upload) {
     const container = this.get('#uploading-status');
     const progressBox = this.get(`#${upload.id}`);
-    if(progressBox){
+    if (progressBox) {
       const temp = this.get(`.progress-${upload.id}`)
-       temp.style.width = `${upload.progress*100}%`;
+      temp.style.width = `${upload.progress * 100}%`;
 
-       if(upload.progress === 1){
+      if (upload.progress === 1) {
         progressBox.remove()
-       }
+      }
 
-    }else{
+    } else {
       container.innerHTML += `
       <div class="col-3" id="${upload.id}">
       <label for="">${upload.filePath}</label>  
@@ -113,20 +67,28 @@ class Render {
     return document.querySelector(s)
   }
   loadMessages(messages) {
+    this.allfiles = messages;
     const rowMessages = this.get('#files');
     console.log(rowMessages)
     rowMessages.innerHTML = '';
     messages.forEach(message => {
-      rowMessages.innerHTML += this.messageBoxHTML(message);
+      if (message.media) {
+        rowMessages.innerHTML += this.messageBoxHTML(message);
+      }
     });
+    this.addSearchListner()
   }
   messageBoxHTML(message) {
+    const fileName = this.messageGetFileName(message);
+    
+    const ext = fileName ? fileName.split(".")[1] : 'unkown';
     return `
             <div class="col-lg-3 col-xl-2" id="id-${message.id}">
             <div class="file-man-box">
-            <a href="" class="file-close"><i class="fa fa-times-circle"></i></a>
+            <a  class="file-close"><i class="fa fa-times-circle"></i></a>
                 <div class="file-img-box">
-                <img src="https://coderthemes.com/highdmin/layouts/assets/images/file_icons/pdf.svg" alt="icon"></div>
+                <img src="${this.getIcon(ext)}" alt="icon">
+                </div>
                 <a  class="file-download" onclick='main.download(${message.id})' ><i class="fa fa-download"></i></a>
                 <div class="file-man-title">
                     <h5 class="mb-0 text-overflow">${this.messageGetFileName(message)}</h5>
@@ -175,9 +137,83 @@ class Render {
   upload() {
     window.api.send("toMain", { type: 'upload' });
   }
-  updateMessage(message){
+  updateMessage(message) {
     const rowMessages = this.get('#files');
-    rowMessages.innerHTML += this.messageBoxHTML(message);
+    rowMessages.innerHTML = this.messageBoxHTML(message) + rowMessages.innerHTML;
+  }
+  loadTempMessage() {
+    fetch('../db/files.json')
+      .then(res => res.json())
+      .then(res => this.loadMessages(res))
+      .catch(err => console.log(err))
+  }
+  addSearchListner(){
+    const divs = document.querySelectorAll('.col-lg-3');
+
+    document.querySelectorAll('.form-control')[0].addEventListener('input', (e) => {
+      const inputValue = event.target.value.toLowerCase();
+
+      // Loop through the divs and check for matching text
+      for (let i = 0; i < divs.length; i++) {
+        const divText = divs[i].textContent.toLowerCase();
+        if (divText.includes(inputValue)) {
+          divs[i].style.display = 'block';
+        } else {
+          divs[i].style.display = 'none';
+        }
+      }
+    })
+  }
+  getIcon(ext){
+     switch(ext){
+      case "rar" :
+        return './svgs/rar.svg'
+      case "zip" :
+        return './svgs/zip.svg'
+      case "pdf" :
+        return './svgs/pdf.svg'
+      case "sql" :
+        return './svgs/sql.svg'
+      case "apk" :
+        return './svgs/apk.svg'
+      case "mp4" :
+      case "mov" :
+      case "webm" :
+      case "flv" :
+      case "ogg" :
+      case "ogv" :
+      case "avi" :
+      case "amv" :
+      case "m4v" :
+      case "3gp" :
+        return './svgs/video.svg'
+      case "mp3" :
+        return './svgs/mp3.svg'
+      case "js" :
+        return './svgs/js.svg'
+      case "css" :
+        return './svgs/css.svg'
+      case "html" :
+        return './svgs/html.svg'
+      case "csv" :
+      case "xlsx" :
+      case "xls" :
+      case "xltx" :
+      case "xltm" :
+        return './svgs/excel.svg'
+      case "doc" :
+      case "docx" :
+        return './svgs/docx.svg'
+      case "png" :
+      case "gif" :
+      case "jpg" :
+      case "jpeg" :
+      case "PNG" :
+        return './svgs/image.svg'
+      default :
+        return './svgs/file.svg'
+
+     }
   }
 }
 

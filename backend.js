@@ -1,7 +1,7 @@
 let { app, BrowserWindow, ipcMain } = require("electron")
 
 const { dialog } = require('electron');
-const { TelegramClient , NewMessage } = require("telegram");
+const { TelegramClient, NewMessage } = require("telegram");
 const { StoreSession } = require("telegram/sessions");
 const crypto = require("crypto");
 const fs = require('fs');
@@ -38,7 +38,7 @@ function createWindow() {
     },
   })
   win.loadFile(__dirname + "/src/index.html")
-  win.webContents.openDevTools();
+  // win.webContents.openDevTools();
 
 
   ipcMain.on("toMain", async (event, args) => {
@@ -47,13 +47,42 @@ function createWindow() {
     log("Recieved An Event From Frontend : " + message.type)
 
     if (message.type === 'messages') {
-      client.getMessages("me", { limit: 10 }).then(res => {
+      const db = './db/files.json';
+      fs.access(db, fs.constants.F_OK, (err) => {
+        if (err) {
+          log('Loading From Server')
+          client.getMessages("me").then(res => {
+            fs.writeFileSync(db, JSON.stringify(res), 'utf8')
+            win.webContents.send("fromMain", JSON.stringify({
+              type: message.type,
+              messages: res
+            }));
+          })
+        } else {
+          fs.readFile(db, 'utf8', (err, data) => {
+            if (err) {
+              log('Loading Failed')
+              console.error('Error reading file:', err);
+            } else {
+              log('Loading From Cache')
+              const content = JSON.parse(data)
+              win.webContents.send("fromMain", JSON.stringify({
+                type: message.type,
+                messages: content
+              }));
+            }
+          });
+        }
+      });
+    }
+    if(message.type === 'latest'){
+      client.getMessages("me").then(res => {
+        fs.writeFileSync(db,JSON.stringify(res), 'utf8')
         win.webContents.send("fromMain", JSON.stringify({
           type: message.type,
           messages: res
         }));
       })
-
     }
     if (message.type === 'download') {
       const result = await client.getMessages("me", {
@@ -117,10 +146,26 @@ function createWindow() {
 
           log('Upload File : ' + filePath + ' files Id : ' + file.id)
           console.log(file.id)
-          win.webContents.send("updates", JSON.stringify(file) )
+          win.webContents.send("updates", JSON.stringify(file))
 
         }
       });
+    }
+    if (message.type === 'sendCode') {
+      log('Invoked Code')
+      await client.sendCode({
+        apiId: apiId,
+        apiHash: api_hash,
+      }, message.phoneNumber)
+    }
+    if (message.type === 'code') {
+      log('Invoked Code')
+      await client.start({
+        phoneNumber: message.phoneNumber, password: null, phoneCode: message.code, onError: () => {
+          log('some Error While Authenticating')
+        }
+      })
+      win.webContents.send("fromMain", JSON.stringify({ type: 'login', success: true }))
     }
   });
 
