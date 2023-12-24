@@ -1,7 +1,7 @@
 {
-  "name": "tg",
+  "name": "TelegramDrive",
   "version": "1.0.0",
-  "description": "",
+  "description": "Telegram Cloud",
   "main": "backend.js",
   "scripts": {
     "start": "electron-forge start",
@@ -11,7 +11,10 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
-  "author": "",
+  "author": {
+    "name": "Faiez Waseem",
+    "email": "faiezwaseem7@gmail.com"
+  },
   "license": "ISC",
   "dependencies": {
     "buffer": "^6.0.3",

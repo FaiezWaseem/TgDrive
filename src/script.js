@@ -17,18 +17,28 @@ class Util {
 
 class Render {
 
-  allfiles = null;
+  allfiles = [];
+  offsetId = null;
   constructor() {
+    this.setLoader();
     this.get('#upload').addEventListener('click', () => {
       this.upload()
     })
     this.get('#refresh').addEventListener('click', () => {
       window.api.send("toMain", { type: 'latest' });
     })
+    this.get('#loadMore').addEventListener('click', () => {
+      this.loadMore()
+    })
   }
   init(receive) {
     console.log(receive)
-    if (receive.type === 'messages') {
+    if (receive.type === 'messages' ) {
+      this.offsetId = receive.offsetId;
+      this.loadMessages(receive.messages)
+    }
+    if (receive.type === 'messages_LOADMORE' ) {
+      this.offsetId = receive.offsetId;
       this.loadMessages(receive.messages)
     }
     if (receive.type === 'download') {
@@ -37,6 +47,15 @@ class Render {
     if (receive.type === 'upload-progress') {
       console.log(JSON.stringify(receive))
       this.addUploadProgressBar(receive)
+    }
+    if (receive.type === 'Auth') {
+      if (!receive.login) {
+        alert('User Not Authorize')
+        window.location.href = 'login.html'
+      }
+    }
+    if (receive.type === 'loading') {
+      this.setLoader(!receive.loaded)
     }
   }
   addUploadProgressBar(upload) {
@@ -67,10 +86,11 @@ class Render {
     return document.querySelector(s)
   }
   loadMessages(messages) {
-    this.allfiles = messages;
+    this.allfiles = [...this.allfiles,  ...messages];
+    
     const rowMessages = this.get('#files');
     console.log(rowMessages)
-    rowMessages.innerHTML = '';
+    // rowMessages.innerHTML = '';
     messages.forEach(message => {
       if (message.media) {
         rowMessages.innerHTML += this.messageBoxHTML(message);
@@ -80,7 +100,7 @@ class Render {
   }
   messageBoxHTML(message) {
     const fileName = this.messageGetFileName(message);
-    
+
     const ext = fileName ? fileName.split(".")[1] : 'unkown';
     return `
             <div class="col-lg-3 col-xl-2" id="id-${message.id}">
@@ -137,6 +157,10 @@ class Render {
   upload() {
     window.api.send("toMain", { type: 'upload' });
   }
+  loadMore(){
+    window.api.send("toMain", { type: 'messages_LOADMORE' , offsetId : this.offsetId  });
+    this.setLoader()
+  }
   updateMessage(message) {
     const rowMessages = this.get('#files');
     rowMessages.innerHTML = this.messageBoxHTML(message) + rowMessages.innerHTML;
@@ -147,7 +171,7 @@ class Render {
       .then(res => this.loadMessages(res))
       .catch(err => console.log(err))
   }
-  addSearchListner(){
+  addSearchListner() {
     const divs = document.querySelectorAll('.col-lg-3');
 
     document.querySelectorAll('.form-control')[0].addEventListener('input', (e) => {
@@ -164,56 +188,64 @@ class Render {
       }
     })
   }
-  getIcon(ext){
-     switch(ext){
-      case "rar" :
+  getIcon(ext) {
+    switch (ext) {
+      case "rar":
         return './svgs/rar.svg'
-      case "zip" :
+      case "zip":
         return './svgs/zip.svg'
-      case "pdf" :
+      case "pdf":
         return './svgs/pdf.svg'
-      case "sql" :
+      case "sql":
         return './svgs/sql.svg'
-      case "apk" :
+      case "apk":
         return './svgs/apk.svg'
-      case "mp4" :
-      case "mov" :
-      case "webm" :
-      case "flv" :
-      case "ogg" :
-      case "ogv" :
-      case "avi" :
-      case "amv" :
-      case "m4v" :
-      case "3gp" :
+      case "mp4":
+      case "mov":
+      case "webm":
+      case "flv":
+      case "ogg":
+      case "ogv":
+      case "avi":
+      case "amv":
+      case "m4v":
+      case "3gp":
         return './svgs/video.svg'
-      case "mp3" :
+      case "mp3":
         return './svgs/mp3.svg'
-      case "js" :
+      case "js":
         return './svgs/js.svg'
-      case "css" :
+      case "css":
         return './svgs/css.svg'
-      case "html" :
+      case "html":
         return './svgs/html.svg'
-      case "csv" :
-      case "xlsx" :
-      case "xls" :
-      case "xltx" :
-      case "xltm" :
+      case "csv":
+      case "xlsx":
+      case "xls":
+      case "xltx":
+      case "xltm":
         return './svgs/excel.svg'
-      case "doc" :
-      case "docx" :
+      case "doc":
+      case "docx":
         return './svgs/docx.svg'
-      case "png" :
-      case "gif" :
-      case "jpg" :
-      case "jpeg" :
-      case "PNG" :
+      case "png":
+      case "gif":
+      case "jpg":
+      case "jpeg":
+      case "PNG":
         return './svgs/image.svg'
-      default :
+      default:
         return './svgs/file.svg'
 
-     }
+    }
+  }
+  setLoader(state = true) {
+    var loader = document.getElementById("loader");
+    if (state) {
+      loader.classList.remove("hide");
+    } else {
+      loader.classList.add("hide");
+    }
   }
 }
 

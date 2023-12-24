@@ -118,8 +118,11 @@
             if(recieve.type === 'login'){
                 if(recieve.success){
                     window.location.href = 'index.html'
+                }else{
+                    alert(`CODE : ${recieve.err.code} \nERROR : ${recieve.err.errorMessage}`)
                 }
             }
+           console.log(recieve)
         });
     </script>
 

@@ -5,7 +5,14 @@ const { TelegramClient, NewMessage } = require("telegram");
 const { StoreSession } = require("telegram/sessions");
 const crypto = require("crypto");
 const fs = require('fs');
+const path = require('path');
+const { exit } = require("process");
 
+// Handle creating/removing shortcuts on Windows when installing/uninstalling.
+if (require('electron-squirrel-startup')) {
+  // eslint-disable-line global-require
+  app.quit();
+}
 
 const apiId = 273729;
 const api_hash = '0f7a4f1ed6c06469bf0ecf70ce92b49d';
@@ -28,6 +35,19 @@ const client = new TelegramClient(storeSession, apiId, api_hash, {
 })()
 
 
+const directoryPath = path.join(windows(), 'tgdrive');
+
+// Check if the directory exists
+if (fs.existsSync(directoryPath)) {
+  console.log('Directory already exists.');
+} else {
+  // Create the directory
+  fs.mkdirSync(directoryPath);
+  console.log('Directory created.');
+}
+
+
+
 function createWindow() {
   let win = new BrowserWindow({
     width: 1200,
@@ -41,43 +61,31 @@ function createWindow() {
   // win.webContents.openDevTools();
 
 
+
   ipcMain.on("toMain", async (event, args) => {
+
+    win.webContents.send("fromMain", JSON.stringify({ loaded: true, type: 'loading' }))
+
+    if (await client.isUserAuthorized()) {
+      log('User is Authorized')
+      win.webContents.send("fromMain", JSON.stringify({ msg: 'User authorized', login: true, type: 'Auth' }))
+    } else {
+      win.webContents.send("fromMain", JSON.stringify({ msg: 'User Not authorized', login: false, type: 'Auth' }))
+    }
 
     const message = JSON.parse(args);
     log("Recieved An Event From Frontend : " + message.type)
 
+
     if (message.type === 'messages') {
-      const db = './db/files.json';
-      fs.access(db, fs.constants.F_OK, (err) => {
-        if (err) {
-          log('Loading From Server')
-          client.getMessages("me").then(res => {
-            fs.writeFileSync(db, JSON.stringify(res), 'utf8')
-            win.webContents.send("fromMain", JSON.stringify({
-              type: message.type,
-              messages: res
-            }));
-          })
-        } else {
-          fs.readFile(db, 'utf8', (err, data) => {
-            if (err) {
-              log('Loading Failed')
-              console.error('Error reading file:', err);
-            } else {
-              log('Loading From Cache')
-              const content = JSON.parse(data)
-              win.webContents.send("fromMain", JSON.stringify({
-                type: message.type,
-                messages: content
-              }));
-            }
-          });
-        }
-      });
+      loadMessages(message, 0)
     }
-    if(message.type === 'latest'){
+    if (message.type === 'messages_LOADMORE') {
+      loadMessages(message, message.offsetId)
+    }
+    if (message.type === 'latest') {
       client.getMessages("me").then(res => {
-        fs.writeFileSync(db,JSON.stringify(res), 'utf8')
+        fs.writeFileSync(db, JSON.stringify(res), 'utf8')
         win.webContents.send("fromMain", JSON.stringify({
           type: message.type,
           messages: res
@@ -160,9 +168,16 @@ function createWindow() {
     }
     if (message.type === 'code') {
       log('Invoked Code')
+      log(message.phoneNumber)
+      log(message.code)
       await client.start({
-        phoneNumber: message.phoneNumber, password: null, phoneCode: message.code, onError: () => {
-          log('some Error While Authenticating')
+        phoneNumber: message.phoneNumber,
+        password: userAuthParamCallback(''),
+        phoneCode: () => message.code,
+        onError: (err) => {
+          log('some Error While Authenticating : ' + err.message)
+          win.webContents.send("fromMain", JSON.stringify({ type: 'login', success: false, message: err.message, err }))
+          return true;
         }
       })
       win.webContents.send("fromMain", JSON.stringify({ type: 'login', success: true }))
@@ -170,11 +185,71 @@ function createWindow() {
   });
 
   function log(message) {
-    win.webContents.send("log", message)
+    win.webContents.send("log", `LOG : ${message}`)
+    console.log("log", `LOG : ${message}`)
+  }
+  async function getMessages(offsetId) {
+    const limit = 50; // Number of messages to retrieve
+
+    const result = await client.getMessages('me', {
+      limit,
+      offsetId,
+    });
+
+    return result;
   }
 
+  async function loadMessages(message, offsetId = 0) {
+
+    const messages = await getMessages(offsetId);
+    const offset = messages[messages.length - 1].id;
+
+    win.webContents.send("fromMain", JSON.stringify({
+      type: message.type,
+      messages: messages,
+      offsetId: offset
+    }));
+
+    saveMessagesToFile(messages)
+
+  }
+  function saveMessagesToFile(messages) {
+    const db = path.join(__dirname, 'messages.json');
+    
+
+    fs.access(db, fs.constants.F_OK, (err) => {
+      if (err) {
+        log('No file Found')
+        fs.writeFileSync(db, JSON.stringify(messages), 'utf8');
+      } else {
+        fs.readFile(db, 'utf8', (err, data) => {
+          if (err) {
+            log('Loading Failed')
+            console.error('Error reading file:', err);
+          } else {
+            log('Loading From Cache')
+            const content = JSON.parse(data)
+            fs.writeFileSync(db, JSON.stringify([ ...content,...messages]), 'utf8');
+          }
+        });
+      }
+    });
+  }
+  function getCache() {
+    const db = path.join(__dirname, 'messages.json');
+    let text = fs.readFileSync(db,'utf8')
+    return JSON.parse(text)
+  }
 }
 
+
+function userAuthParamCallback(param) {
+  return async function () {
+    return await new (resolve => {
+      resolve(param)
+    })()
+  }
+}
 
 
 app.on("ready", createWindow)
@@ -187,9 +262,9 @@ app.on("window-all-closed", () => {
 const downloadPath = (m) => {
   switch (m.media.className) {
     case 'MessageMediaPhoto':
-      return "downloads/" + getRandom() + ".png"
+      return path.join(windows(), 'tgdrive', getRandom() + ".png")
     case 'MessageMediaDocument':
-      return "downloads/" + getName(m)
+      return path.join(windows(), 'tgdrive', getName(m))
   }
 }
 function generateRandomId() {

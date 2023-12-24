@@ -12,6 +12,12 @@
 </head>
 
 <body>
+    <div id="loader" class="loader">
+        <div class="d-flex align-items-center">
+            <strong>Loading ...</strong>
+            <div class="spinner-border ml-auto" role="status" aria-hidden="true"></div>
+        </div>
+      </div>
     <div class="content">
         <div class="container bg-white">
             <div class="row">
@@ -36,12 +42,9 @@
                         </div>
 
                         <div class="row" id="files">
-                            <div class="d-flex align-items-center">
-                                <strong>Loading...</strong>
-                                <div class="spinner-border ml-auto" role="status" aria-hidden="true"></div>
-                            </div>
+                           
                         </div>
-
+                        <div class="text-center mt-3"> <button id="loadMore" type="button" class="btn btn-outline-danger w-md waves-effect waves-light"><i class="mdi mdi-refresh"></i> Load More Files</button></div>
 
                     </div>
                 </div>
