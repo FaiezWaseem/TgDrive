@@ -1,8 +1,9 @@
 -- Add Folders
 -- Delete Files
 -- User Auth           ------------------->             ::[DONE]::
--- Large File Upload (split in parts)
+-- Large File Upload (split in parts)  ----->           ::[DONE]::
+-- Join Parts File
 -- database            ------------------->             ::[CACHED DB (LOCAL JSON) ADDED]::
 -- ShowDownloaded Files
--- Save To Downloads
+-- Save To Downloads   ------------------->             ::[DONE]::
 -- update CACHED  DB on file upload

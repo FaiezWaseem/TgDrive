@@ -19,6 +19,7 @@ class Render {
 
   allfiles = [];
   offsetId = null;
+  isTerminalOpen = true;
   constructor() {
     this.setLoader();
     this.get('#upload').addEventListener('click', () => {
@@ -30,14 +31,38 @@ class Render {
     this.get('#loadMore').addEventListener('click', () => {
       this.loadMore()
     })
+    this.get('#terminalIcon').addEventListener('click', () => {
+      if (this.isTerminalOpen) {
+         this.showTerminal(this.isTerminalOpen)
+         this.isTerminalOpen = !this.isTerminalOpen
+        } else {
+        this.showTerminal(this.isTerminalOpen)
+        this.isTerminalOpen = !this.isTerminalOpen
+  
+      }
+    })
+    document.addEventListener('keydown', function(event) {
+      if (event.ctrlKey && event.key === 'j') {
+        if (main.isTerminalOpen) {
+          main.showTerminal(main.isTerminalOpen)
+          main.isTerminalOpen = !main.isTerminalOpen
+         } else {
+         main.showTerminal(main.isTerminalOpen)
+         main.isTerminalOpen = !main.isTerminalOpen
+   
+       }
+      }
+    });
   }
   init(receive) {
-    console.log(receive)
-    if (receive.type === 'messages' ) {
+    main.addTerminalLog(receive)
+    if (receive.type === 'messages') {
       this.offsetId = receive.offsetId;
+      this.setLoader(true)
       this.loadMessages(receive.messages)
     }
-    if (receive.type === 'messages_LOADMORE' ) {
+    if (receive.type === 'messages_LOADMORE') {
+      this.setLoader(true)
       this.offsetId = receive.offsetId;
       this.loadMessages(receive.messages)
     }
@@ -45,7 +70,7 @@ class Render {
       this.FiledownloadStatus(receive)
     }
     if (receive.type === 'upload-progress') {
-      console.log(JSON.stringify(receive))
+      main.addTerminalLog(JSON.stringify(receive))
       this.addUploadProgressBar(receive)
     }
     if (receive.type === 'Auth') {
@@ -55,15 +80,18 @@ class Render {
       }
     }
     if (receive.type === 'loading') {
-      this.setLoader(!receive.loaded)
+      // this.setLoader(!receive.loaded)
     }
   }
   addUploadProgressBar(upload) {
     const container = this.get('#uploading-status');
     const progressBox = this.get(`#${upload.id}`);
     if (progressBox) {
+      const progress = (upload.progress * 100).toFixed(2);
       const temp = this.get(`.progress-${upload.id}`)
-      temp.style.width = `${upload.progress * 100}%`;
+      const label = this.get(`#label-${upload.id}`)
+      temp.style.width = `${progress}%`;
+      label.innerText = `${progress}%`;
 
       if (upload.progress === 1) {
         progressBox.remove()
@@ -72,9 +100,10 @@ class Render {
     } else {
       container.innerHTML += `
       <div class="col-3" id="${upload.id}">
-      <label for="">${upload.filePath}</label>  
+      <label >${upload.filePath}</label>  
       <div class="progress mt-2" >
-          <div class="progress-bar progress-bar-striped progress-bar-animated progress-${upload.id}" role="progressbar" style="width: 0%" aria-valuenow="10" aria-valuemin="0" aria-valuemax="100"></div>
+      <div class="progress-bar progress-bar-striped progress-bar-animated progress-${upload.id}" role="progressbar" style="width: 0%" aria-valuenow="10" aria-valuemin="0" aria-valuemax="100"></div>
+      <label id="label-${upload.id}">0%</label>  
         </div>
      </div>
 
@@ -86,16 +115,14 @@ class Render {
     return document.querySelector(s)
   }
   loadMessages(messages) {
-    this.allfiles = [...this.allfiles,  ...messages];
-    
+    this.allfiles = [...this.allfiles, ...messages];
     const rowMessages = this.get('#files');
-    console.log(rowMessages)
-    // rowMessages.innerHTML = '';
     messages.forEach(message => {
       if (message.media) {
         rowMessages.innerHTML += this.messageBoxHTML(message);
       }
     });
+    this.setLoader(false)
     this.addSearchListner()
   }
   messageBoxHTML(message) {
@@ -134,31 +161,31 @@ class Render {
     }
   }
   download(id) {
-    console.log(id)
+    main.addTerminalLog(id)
     window.api.send("toMain", { type: 'download', id });
   }
   FiledownloadStatus(receive) {
-    console.log(receive)
+    main.addTerminalLog(receive)
     if (receive.download) {
       const prog = this.get(`#progress-${receive.id}`)
       const progParent = this.get(`.progress-${receive.id}`)
       prog.style.width = '0%'
       progParent.style.display = 'none'
-      console.log(prog)
+      main.addTerminalLog(prog)
       alert('File Downloaded')
     } else {
       const prog = this.get(`#progress-${receive.progress.id}`)
       const progParent = this.get(`.progress-${receive.progress.id}`)
       progParent.style = '';
       prog.style.width = `${receive.progress.progress * 100}%`
-      console.log(prog)
+      main.addTerminalLog(prog)
     }
   }
   upload() {
     window.api.send("toMain", { type: 'upload' });
   }
-  loadMore(){
-    window.api.send("toMain", { type: 'messages_LOADMORE' , offsetId : this.offsetId  });
+  loadMore() {
+    window.api.send("toMain", { type: 'messages_LOADMORE', offsetId: this.offsetId });
     this.setLoader()
   }
   updateMessage(message) {
@@ -169,10 +196,10 @@ class Render {
     fetch('../db/files.json')
       .then(res => res.json())
       .then(res => this.loadMessages(res))
-      .catch(err => console.log(err))
+      .catch(err => main.addTerminalLog(err))
   }
   addSearchListner() {
-    const divs = document.querySelectorAll('.col-lg-3');
+    const divs = document.querySelectorAll('#files .col-lg-3');
 
     document.querySelectorAll('.form-control')[0].addEventListener('input', (e) => {
       const inputValue = event.target.value.toLowerCase();
@@ -247,7 +274,25 @@ class Render {
       loader.classList.add("hide");
     }
   }
+  showTerminal(state = true){
+    var loader = document.getElementById("terminal");
+    if (state) {
+      loader.classList.remove("hide");
+    } else {
+      loader.classList.add("hide");
+    }
+   
+  }
+  addTerminalLog(message){
+    if(typeof message === 'object'){
+      this.get('#terminal').innerHTML += ` <p>[OBJECT][OBJECT] ~ See the following Object in Console</p>`;
+      console.log(message)
+    }else{
+      this.get('#terminal').innerHTML += ` <p>${JSON.stringify(message)}</p>`
+    }
+  }
 }
+
 
 
 
@@ -257,7 +302,8 @@ window.api.receive("fromMain", (data) => {
   main.init(JSON.parse(data))
 });
 window.api.receive("log", (data) => {
-  console.log(data)
+  main.addTerminalLog(data)
+  main.addTerminalLog(data)
 });
 window.api.receive("updates", (data) => {
   main.updateMessage(JSON.parse(data))

@@ -1,12 +1,13 @@
 let { app, BrowserWindow, ipcMain } = require("electron")
 
 const { dialog } = require('electron');
-const { TelegramClient, NewMessage } = require("telegram");
+const { TelegramClient } = require("telegram");
 const { StoreSession } = require("telegram/sessions");
 const crypto = require("crypto");
 const fs = require('fs');
 const path = require('path');
-const { exit } = require("process");
+const split = require('split-file')
+
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {
@@ -44,6 +45,16 @@ if (fs.existsSync(directoryPath)) {
   // Create the directory
   fs.mkdirSync(directoryPath);
   console.log('Directory created.');
+}
+const tempDir = path.join(__dirname, 'temp');
+
+// Check if the directory exists
+if (fs.existsSync(tempDir)) {
+  console.log('Temp Directory already exists.');
+} else {
+  // Create the directory
+  fs.mkdirSync(tempDir);
+  console.log('Temp Directory created.');
 }
 
 
@@ -141,20 +152,54 @@ function createWindow() {
           const randomId = generateRandomId();
           const filePath = filePaths[0];
           log('Upload Picked File : ' + filePath)
-          console.log('selected-file', filePath);
-          const file = await client.sendFile('me', {
-            file: filePath,
-            caption: '--SEND___FROM___ELECTRON_TG_CLIENT-----',
-            workers: 5,
-            progressCallback: (p) => {
-              win.webContents.send("fromMain", JSON.stringify({ type: 'upload-progress', progress: p, filePath, id: randomId }))
-              console.log('Progress : ' + p + ' %')
-            }
-          })
 
-          log('Upload File : ' + filePath + ' files Id : ' + file.id)
-          console.log(file.id)
-          win.webContents.send("updates", JSON.stringify(file))
+          // Check FileSize 
+          const info = fs.statSync(filePath);
+          const sizeInMb = (info.size / ((1024 * 1000)))
+
+          if (sizeInMb > 2000) {
+            log('file size is big')
+            log('Large File Spliiting into Parts')
+            const names = await split.splitFile(filePath, (sizeInMb / 2000), __dirname + "/temp/")
+            log('File Splitted , Preparing To UPload')
+            for (let i = 0; i < names.length; i++) {
+              const path = names[i];
+              const file = await client.sendFile('me', {
+                file: path,
+                caption: '--SEND___FROM___ELECTRON_TG_CLIENT-----',
+                workers: 10,
+                progressCallback: (p) => {
+                  win.webContents.send("fromMain", JSON.stringify({ type: 'upload-progress', progress: p, filePath : path, id: randomId }))
+                  console.log('Progress : ' + p + ' %')
+                }
+              })
+  
+              log('Upload File : ' + path + ' files Id : ' + file.id)
+              console.log(file.id)
+              win.webContents.send("updates", JSON.stringify(file)) 
+              fs.unlinkSync(path)
+            }
+          } else {
+            //  File is Less than 2GB NORMAL UPLOAD
+
+            const file = await client.sendFile('me', {
+              file: filePath,
+              caption: '--SEND___FROM___ELECTRON_TG_CLIENT-----',
+              workers: 5,
+              progressCallback: (p) => {
+                win.webContents.send("fromMain", JSON.stringify({ type: 'upload-progress', progress: p, filePath, id: randomId }))
+                console.log('Progress : ' + p + ' %')
+              }
+            })
+
+            log('Upload File : ' + filePath + ' files Id : ' + file.id)
+            console.log(file.id)
+            win.webContents.send("updates", JSON.stringify(file))
+
+
+
+
+          }
 
         }
       });
@@ -204,6 +249,8 @@ function createWindow() {
     const messages = await getMessages(offsetId);
     const offset = messages[messages.length - 1].id;
 
+    log('Messages found ')
+
     win.webContents.send("fromMain", JSON.stringify({
       type: message.type,
       messages: messages,
@@ -215,21 +262,21 @@ function createWindow() {
   }
   function saveMessagesToFile(messages) {
     const db = path.join(__dirname, 'messages.json');
-    
+
 
     fs.access(db, fs.constants.F_OK, (err) => {
       if (err) {
-        log('No file Found')
+        log('No Cache file Found')
         fs.writeFileSync(db, JSON.stringify(messages), 'utf8');
       } else {
         fs.readFile(db, 'utf8', (err, data) => {
           if (err) {
-            log('Loading Failed')
+            log('Loading Failed Reading Cache : ' + err.message)
             console.error('Error reading file:', err);
           } else {
-            log('Loading From Cache')
+            log('Saving To Cache')
             const content = JSON.parse(data)
-            fs.writeFileSync(db, JSON.stringify([ ...content,...messages]), 'utf8');
+            fs.writeFileSync(db, JSON.stringify([...content, ...messages]), 'utf8');
           }
         });
       }
@@ -237,7 +284,7 @@ function createWindow() {
   }
   function getCache() {
     const db = path.join(__dirname, 'messages.json');
-    let text = fs.readFileSync(db,'utf8')
+    let text = fs.readFileSync(db, 'utf8')
     return JSON.parse(text)
   }
 }
