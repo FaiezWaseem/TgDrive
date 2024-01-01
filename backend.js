@@ -7,6 +7,8 @@ const crypto = require("crypto");
 const fs = require('fs');
 const path = require('path');
 const split = require('split-file')
+const downloadFolder = require('downloads-folder');
+
 
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
@@ -36,7 +38,7 @@ const client = new TelegramClient(storeSession, apiId, api_hash, {
 })()
 
 
-const directoryPath = path.join(windows(), 'tgdrive');
+const directoryPath = path.join(downloadFolder(), 'tgdrive');
 
 // Check if the directory exists
 if (fs.existsSync(directoryPath)) {
@@ -95,13 +97,7 @@ function createWindow() {
       loadMessages(message, message.offsetId)
     }
     if (message.type === 'latest') {
-      client.getMessages("me").then(res => {
-        fs.writeFileSync(db, JSON.stringify(res), 'utf8')
-        win.webContents.send("fromMain", JSON.stringify({
-          type: message.type,
-          messages: res
-        }));
-      })
+      loadMessages(message, 0)
     }
     if (message.type === 'download') {
       const result = await client.getMessages("me", {
@@ -227,6 +223,16 @@ function createWindow() {
       })
       win.webContents.send("fromMain", JSON.stringify({ type: 'login', success: true }))
     }
+    if(message.type === 'isfileDownloaded'){
+      const filepath = path.join(downloadFolder(), 'tgdrive', message.fileName);
+      if(fs.existsSync(filepath)){
+        win.webContents.send('fromMain' , JSON.stringify({
+          filepath,
+          elementId : message.elementId,
+          type : message.type
+        }))
+      }
+    }
   });
 
   function log(message) {
@@ -309,9 +315,9 @@ app.on("window-all-closed", () => {
 const downloadPath = (m) => {
   switch (m.media.className) {
     case 'MessageMediaPhoto':
-      return path.join(windows(), 'tgdrive', getRandom() + ".png")
+      return path.join(downloadFolder(), 'tgdrive', getRandom() + ".png")
     case 'MessageMediaDocument':
-      return path.join(windows(), 'tgdrive', getName(m))
+      return path.join(downloadFolder(), 'tgdrive', getName(m))
   }
 }
 function generateRandomId() {

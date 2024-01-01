@@ -7,3 +7,4 @@
 -- ShowDownloaded Files
 -- Save To Downloads   ------------------->             ::[DONE]::
 -- update CACHED  DB on file upload
+-- QR Code Login 

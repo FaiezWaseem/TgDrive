@@ -13,6 +13,11 @@ class Util {
     return `${parseFloat((a / Math.pow(1024, d)).toFixed(c))} ${['Bytes', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB'][d]
       }`;
   }
+
+  static isImage(ext){
+   const  images= ['png','jpg','gif','PNG','JPEG','jpeg','webm'];
+    return images.includes(ext)
+  }
 }
 
 class Render {
@@ -20,6 +25,7 @@ class Render {
   allfiles = [];
   offsetId = null;
   isTerminalOpen = true;
+ 
   constructor() {
     this.setLoader();
     this.get('#upload').addEventListener('click', () => {
@@ -79,6 +85,9 @@ class Render {
         window.location.href = 'login.html'
       }
     }
+    if(receive.type === 'isfileDownloaded'){
+      this.get(`#${receive.elementId}`).src = receive.filepath
+    }
     if (receive.type === 'loading') {
       // this.setLoader(!receive.loaded)
     }
@@ -127,18 +136,21 @@ class Render {
   }
   messageBoxHTML(message) {
     const fileName = this.messageGetFileName(message);
-
     const ext = fileName ? fileName.split(".")[1] : 'unkown';
+    if(Util.isImage(ext)){
+      window.api.send("toMain", { type: 'isfileDownloaded' , fileName , elementId : `img-${message.id}`});
+    }
+
     return `
-            <div class="col-lg-3 col-xl-2" id="id-${message.id}">
+            <div class="col-lg-3 col-xl-2" id="id-${message.id}"   >
             <div class="file-man-box">
             <a  class="file-close"><i class="fa fa-times-circle"></i></a>
                 <div class="file-img-box">
-                <img src="${this.getIcon(ext)}" alt="icon">
+                <img src="${this.getIcon(ext)}" alt="icon" id="img-${message.id}" data-bs-toggle="modal" data-bs-target="#staticBackdrop"  onclick='main.showImage("#img-${message.id}")' >
                 </div>
                 <a  class="file-download" onclick='main.download(${message.id})' ><i class="fa fa-download"></i></a>
                 <div class="file-man-title">
-                    <h5 class="mb-0 text-overflow">${this.messageGetFileName(message)}</h5>
+                    <h5 class="mb-0 text-overflow" id="fileName-${message.id}">${fileName}</h5>
                     <p class="mb-0"><small>${Util.formatBytes(message?.media?.document?.size)}</small></p>
                         </div>
                         <div class="progress progress-${message.id}" style='display:none;'>
@@ -148,6 +160,9 @@ class Render {
                    
                 </div>
        `;
+  }
+  showImage(id){
+    this.get('#modal-img-preview').src =  this.get(id).src
   }
   messageGetFileName(m) {
     const getName = (m) => {
@@ -172,7 +187,9 @@ class Render {
       prog.style.width = '0%'
       progParent.style.display = 'none'
       main.addTerminalLog(prog)
-      alert('File Downloaded')
+      const fileName = this.get(`#fileName-${receive.id}`).innerText
+      alert(fileName + '   Downloaded')
+      window.api.send("toMain", { type: 'isfileDownloaded' , fileName , elementId : `img-${receive.id}`});
     } else {
       const prog = this.get(`#progress-${receive.progress.id}`)
       const progParent = this.get(`.progress-${receive.progress.id}`)
@@ -193,7 +210,7 @@ class Render {
     rowMessages.innerHTML = this.messageBoxHTML(message) + rowMessages.innerHTML;
   }
   loadTempMessage() {
-    fetch('../db/files.json')
+    fetch('../messages.json')
       .then(res => res.json())
       .then(res => this.loadMessages(res))
       .catch(err => main.addTerminalLog(err))
