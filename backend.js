@@ -233,6 +233,37 @@ function createWindow() {
         }))
       }
     }
+    if(message.type  === 'generateQr'){
+      await client.signInUserWithQrCode({ apiId, apiHash : api_hash },
+        {
+              onError: async function(p1) {
+                  console.log("error", p1);
+                  win.webContents.send('fromMain' , JSON.stringify({
+                    error : p1,
+                    type : message.type
+                  }))
+                  // true = stop the authentication processes
+                  return true;
+              },
+              qrCode: async (code) => {
+                const qr  =  `tg://login?token=${code.token.toString("base64url")}`;
+                  console.log("Convert the next string to a QR code and scan it");
+                  console.log(qr)
+               
+                  win.webContents.send('fromMain' , JSON.stringify({
+                    qr,
+                    type : message.type
+                  }))
+              },
+              password: async (hint) => {
+                  // password if needed
+                  return "1111";
+              }
+          }
+        );
+        win.webContents.send("fromMain", JSON.stringify({ type: 'login', success: true }))
+
+    }
   });
 
   function log(message) {

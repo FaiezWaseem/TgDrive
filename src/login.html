@@ -63,12 +63,37 @@
         #codeContainer {
             display: none;
         }
+        #phone-section {
+            display: none;
+        }
+        #qrcode {
+            margin: 1em 0.5em;
+        }
     </style>
 </head>
 
 <body>
     <div class="container vh-100 d-flex justify-content-center align-items-center">
-        <div class="card py-4 px-4">
+        
+        <!-- QRCODE -->
+        <div class="card py-4 px-4" id="qr-section">
+            <div class="text-center">
+                <img src="https://logos-world.net/wp-content/uploads/2021/03/Telegram-Logo-2019-present.jpg" width="60">
+            </div>
+            <div class="text-center mt-3">
+
+                <span class="info-text">Please Scan the QrCode To Login</span>
+
+            </div>
+            <div id="qrcode"></div>
+            <div class=" mt-5 d-flex justify-content-between align-items-center">
+                <span id="info-text"> Or Login with PhoneNumber</span>
+                <button class="go-button" onclick="changeSection()"><i class='bx bxs-right-arrow-alt'></i></button>
+            </div>
+        </div>
+
+        <!-- PHONE NUMBER AUTH -->
+        <div class="card py-4 px-4" id="phone-section">
             <div class="text-center">
                 <img src="https://logos-world.net/wp-content/uploads/2021/03/Telegram-Logo-2019-present.jpg" width="60">
             </div>
@@ -77,6 +102,7 @@
                 <span class="info-text">Please enter your mobile number to login</span>
 
             </div>
+
             <div class="position-relative mt-3 form-input" id="phoneContainer">
                 <input class="form-control" id="phone" placeholder="Enter Phone Number ex: (+xxxxxxxx)">
                 <i class='bx bxs-phone'></i>
@@ -93,8 +119,14 @@
             </div>
         </div>
     </div>
+    <script src="./lib/qrcode.min.js"></script>
     <script>
         let phoneNumber = null;
+
+        function changeSection(){
+            document.getElementById('qr-section').style.display = 'none'
+            document.getElementById('phone-section').style.display = 'block'
+        }
 
         function sendCode() {
             if (phoneNumber) {
@@ -111,18 +143,32 @@
         function verifyCode() {
             const code = document.getElementById('code').value
             window.api.send('toMain', { phoneNumber, code, type: 'code' });
-
         }
+
+        // default Qr Login 
+        // Create Qr Link
+        window.api.send('toMain', { type: 'generateQr' });
+        
+        
         window.api.receive("fromMain", (data) => {
             const recieve = JSON.parse(data);
-            if(recieve.type === 'login'){
-                if(recieve.success){
+            if (recieve.type === 'login') {
+                if (recieve.success) {
                     window.location.href = 'index.html'
-                }else{
+                } else {
                     alert(`CODE : ${recieve.err.code} \nERROR : ${recieve.err.errorMessage}`)
                 }
             }
-           console.log(recieve)
+            if (recieve.type === 'generateQr') {
+                if (recieve.qr) {
+                    document.getElementById('qrcode').innerHTML = ''
+                    var qrcode = new QRCode("qrcode");
+                    qrcode.makeCode(recieve.qr);
+                } else {
+                    alert('Failed To Generate Qr')
+                }
+            }
+            console.log(recieve)
         });
     </script>
 

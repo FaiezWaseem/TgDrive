@@ -10,7 +10,10 @@
 
 - [x] Large File Upload [File Splitted into Parts if Greater than 2gb]
 - [x] User Auth
-- [x] file Saved To Downloads
+- [x] file Saved To Downloads Folder
+- [x] Qr Code Login
 - [ ] local db
 - [ ] Join Parts
-- [ ] Dowloaded files Preview (Image/Video etc)
+- [ ] Remove Files
+- [ ] Folder system
+- [x] Dowloaded files Preview [\Image]

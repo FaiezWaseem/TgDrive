@@ -4,7 +4,7 @@
 -- Large File Upload (split in parts)  ----->           ::[DONE]::
 -- Join Parts File
 -- database            ------------------->             ::[CACHED DB (LOCAL JSON) ADDED]::
--- ShowDownloaded Files
+-- ShowDownloaded Files ------------------>             ::[DONE]::
 -- Save To Downloads   ------------------->             ::[DONE]::
 -- update CACHED  DB on file upload
--- QR Code Login 
+-- QR Code Login         -------------------->          ::[DONE]::
